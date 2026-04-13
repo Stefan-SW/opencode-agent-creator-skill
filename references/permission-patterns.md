@@ -162,6 +162,8 @@ permission:
 
 ## Edit/Write Permission Patterns
 
+> **Note:** The `write` tool is controlled by the `edit` permission. Setting `edit` covers all file modifications: `edit`, `write`, `patch`, and `multiedit`.
+
 ### Pattern: Always Confirm
 
 Safest for file modifications.
@@ -169,7 +171,6 @@ Safest for file modifications.
 ```yaml
 permission:
   edit: ask
-  write: ask
 ```
 
 **Use for:** Most agents, especially when first deploying
@@ -183,7 +184,6 @@ Auto-allow for well-tested agents.
 ```yaml
 permission:
   edit: allow
-  write: allow
 ```
 
 **Use for:** Mature, well-tested agents in safe environments
@@ -197,7 +197,6 @@ No file modifications allowed.
 ```yaml
 permission:
   edit: deny
-  write: deny
 ```
 
 **Use for:** Code reviewers, auditors, analyzers
@@ -282,7 +281,7 @@ permission:
     "security-auditor": ask
 ```
 
-**Use for:** Orchestrator agents
+> **Note:** Last matching rule wins. Put `"*"` first so specific rules after it take precedence.
 
 ---
 
@@ -307,16 +306,9 @@ permission:
 Read-only analysis, can fetch security docs.
 
 ```yaml
-tools:
-  read: true
-  grep: true
-  glob: true
-  webfetch: true
-  write: false
-  edit: false
-  bash: false
-
 permission:
+  edit: deny
+  bash: deny
   webfetch: allow
   skill:
     "security-review": allow
@@ -330,13 +322,8 @@ permission:
 Controlled bash, confirm modifications.
 
 ```yaml
-tools:
-  read: true
-  write: true
-  bash: true
-  webfetch: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "sudo *": ask
@@ -345,7 +332,6 @@ permission:
     "git status*": allow
     "rm *": deny
     "dd *": deny
-  write: ask
   skill:
     "linux-sysadmin": allow
     "security-review": allow
@@ -358,16 +344,9 @@ permission:
 File operations, web research, no code execution.
 
 ```yaml
-tools:
-  read: true
-  write: true
-  edit: true
-  webfetch: true
-  bash: false
-
 permission:
-  write: ask
   edit: ask
+  bash: deny
   webfetch: allow
   skill:
     "*": allow
@@ -380,15 +359,9 @@ permission:
 Read-only analysis, load relevant skills.
 
 ```yaml
-tools:
-  read: true
-  grep: true
-  glob: true
-  write: false
-  edit: false
-  bash: false
-
 permission:
+  edit: deny
+  bash: deny
   skill:
     "react-best-practices": allow
     "security-review": allow
@@ -402,18 +375,13 @@ permission:
 Database operations with safety controls.
 
 ```yaml
-tools:
-  read: true
-  write: true
-  bash: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "psql -c 'SELECT*": allow
     "psql -c 'DROP*": deny
     "psql -c 'TRUNCATE*": deny
-  write: ask
 ```
 
 ---
@@ -422,30 +390,32 @@ permission:
 
 ```
 Does agent modify files?
-├─ No  → edit: deny, write: deny
-└─ Yes → edit: ask, write: ask (or allow if trusted)
+├─ No  → edit: deny
+└─ Yes → edit: ask (or allow if trusted)
 
 Does agent execute commands?
-├─ No  → bash: false
-└─ Yes → bash: true + patterns
+├─ No  → bash: deny
+└─ Yes → bash: patterns
          ├─ Safe commands → allow
          ├─ Destructive commands → deny
          └─ Others → ask
 
 Does agent need web access?
-├─ No  → webfetch: false
+├─ No  → webfetch: deny
 └─ Yes → webfetch: ask (or allow if safe)
 
 Does agent load skills?
-├─ All skills → skill: {"*": "allow"}
-├─ Specific skills → skill: {"skill-name": "allow", "*": "deny"}
-└─ No skills → skill: false
+├─ All skills    → skill: {"*": "allow"}
+├─ Specific only → skill: {"*": "deny", "skill-name": "allow"}
+└─ None          → skill: {"*": "deny"}
 
 Does agent spawn subagents?
-├─ Never → task: {"*": "deny"}
-├─ Specific → task: {"subagent-name": "allow", "*": "deny"}
-└─ Freely → task: {"*": "allow"}
+├─ Never    → task: {"*": "deny"}
+├─ Specific → task: {"*": "deny", "subagent-name": "allow"}
+└─ Freely   → task: {"*": "allow"}
 ```
+
+> **Note:** For `task` and `skill` patterns, last matching rule wins — put `"*"` first and specific rules after.
 
 ---
 

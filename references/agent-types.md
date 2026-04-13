@@ -44,13 +44,10 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  webfetch: deny
 ---
 ```
 
@@ -63,8 +60,8 @@ tools:
 - **glob/grep**: Find files and patterns to review
 - **skill**: Reference best practices during review
 - **todo**: Track review findings across multiple files
-- **NO write/edit**: Prevents accidental modifications (review only)
-- **NO bash**: No system access needed for review
+- **NO write/edit**: Prevented via `edit: deny`
+- **NO bash**: Prevented via `bash: deny`
 
 ### Core Instruction Structure
 
@@ -125,14 +122,10 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  glob: true
-  grep: true
-  skill: true
-  webfetch: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  webfetch: allow
 ---
 ```
 
@@ -145,7 +138,8 @@ tools:
 - **skill**: Reference security best practices
 - **webfetch**: Check CVE databases, security advisories
 - **todo**: Track findings by severity
-- **NO write/edit/bash**: Audit only, no modifications
+- **NO write/edit**: Prevented via `edit: deny`
+- **NO bash**: Prevented via `bash: deny`
 
 ### Core Instruction Structure
 
@@ -208,24 +202,20 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  write: true
-  glob: true
-  grep: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: deny
 ---
 ```
 
 ### Tool Selection Rationale
 
 - **read**: Analyze code to document
-- **write**: Create new documentation files
+- **write/edit**: Create and update documentation files (controlled by `edit: ask`)
 - **glob/grep**: Find code patterns to document
 - **todo**: Track documentation tasks
-- **NO edit**: Docs are typically created fresh, not edited
-- **NO bash**: No system access needed
+- **NO bash**: Prevented via `bash: deny`
 
 ### Core Instruction Structure
 
@@ -287,14 +277,10 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: deny
 ---
 ```
 
@@ -303,12 +289,11 @@ tools:
 ### Tool Selection Rationale
 
 - **read**: Understand code before refactoring
-- **edit**: Make surgical, precise changes
+- **edit**: Make surgical, precise changes (controlled by `edit: ask`)
 - **glob/grep**: Find refactoring opportunities
 - **skill**: Reference best practices
 - **todo**: Track multi-file refactoring tasks
-- **NO write**: Prevents accidental file overwrites
-- **NO bash**: No system access needed
+- **NO bash**: Prevented via `bash: deny`
 
 ### Core Instruction Structure
 
@@ -370,15 +355,9 @@ description: >-
 
 mode: primary
 
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
 ---
 ```
 
@@ -388,12 +367,11 @@ tools:
 ### Tool Selection Rationale
 
 - **read**: Understand existing codebase
-- **write**: Create new feature files
-- **edit**: Integrate with existing files
+- **write/edit**: Create and integrate feature files (controlled by `edit: ask`)
 - **glob/grep**: Find integration points
 - **skill**: Follow best practices
 - **todo**: Track multi-step feature development
-- **NO bash**: Features typically don't need system access
+- **NO bash**: Prevented via `bash: deny`
 
 ### Core Instruction Structure
 
@@ -457,17 +435,8 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "ls *": allow
@@ -482,13 +451,12 @@ permission:
 
 ### Tool Selection Rationale
 
-- **bash**: Execute system commands (apt, systemctl, etc.)
+- **bash**: Execute system commands (`apt`, `systemctl`, etc.) with pattern controls
 - **read**: Examine config files and logs
-- **edit**: Modify configuration files
+- **edit**: Modify configuration files (controlled by `edit: ask`)
 - **glob/grep**: Find files and patterns in system
 - **skill**: Reference Linux best practices
 - **todo**: Track multi-step system changes
-- **write**: Usually edit is safer for configs
 
 ### Core Instruction Structure
 
@@ -550,18 +518,8 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "psql -c 'SELECT*": allow
@@ -574,10 +532,9 @@ permission:
 
 ### Tool Selection Rationale
 
-- **bash**: Run database CLI tools (psql, mysql, mongosh)
+- **bash**: Run database CLI tools (`psql`, `mysql`, `mongosh`) with pattern controls
 - **read**: Examine schema files and migration scripts
-- **write**: Create new migrations and schema files
-- **edit**: Modify existing schemas
+- **write/edit**: Create migrations and modify schemas (controlled by `edit: ask`)
 - **glob/grep**: Find database-related files
 - **skill**: Reference database best practices
 - **todo**: Track complex migration tasks
@@ -642,18 +599,8 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "npm test*": allow
@@ -666,10 +613,9 @@ permission:
 
 ### Tool Selection Rationale
 
-- **bash**: Run test commands (npm test, pytest, etc.)
+- **bash**: Run test commands (`npm test`, `pytest`, etc.) with pattern controls
 - **read**: Analyze code to test
-- **write**: Create new test files
-- **edit**: Update existing tests
+- **write/edit**: Create and update test files (controlled by `edit: ask`)
 - **glob/grep**: Find test files and patterns
 - **skill**: Reference testing best practices
 - **todo**: Track test coverage goals
@@ -734,25 +680,15 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  webfetch: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "docker ps*": allow
     "kubectl get*": allow
     "terraform plan*": allow
     "terraform apply*": ask
+  webfetch: allow
 ---
 ```
 
@@ -760,12 +696,11 @@ permission:
 
 ### Tool Selection Rationale
 
-- **bash**: Run deployment commands, CLI tools
+- **bash**: Run deployment commands and CLI tools with pattern controls
 - **read**: Examine config files and logs
-- **write**: Create pipeline configs, IaC files
-- **edit**: Update existing configurations
+- **write/edit**: Create and update pipeline configs and IaC files (controlled by `edit: ask`)
 - **glob/grep**: Find configuration files
-- **webfetch**: Check deployment status, fetch docs
+- **webfetch**: Check deployment status, fetch docs (allowed by `webfetch: allow`)
 - **skill**: Reference DevOps best practices
 - **todo**: Track deployment steps
 
@@ -829,18 +764,8 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "curl *": allow
@@ -852,10 +777,9 @@ permission:
 
 ### Tool Selection Rationale
 
-- **bash**: Run API testing tools (curl, httpie)
+- **bash**: Run API testing tools (`curl`, `httpie`) with pattern controls
 - **read**: Analyze existing API code
-- **write**: Create new endpoint files
-- **edit**: Update existing endpoints
+- **write/edit**: Create and update endpoint files (controlled by `edit: ask`)
 - **glob/grep**: Find API-related code
 - **skill**: Reference backend and security best practices
 - **todo**: Track API development tasks
@@ -945,18 +869,8 @@ description: >-
 
 mode: primary
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "npm *": allow
@@ -982,16 +896,10 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  webfetch: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: allow
 ---
 ```
 
@@ -1006,7 +914,7 @@ When selecting or customizing an agent pattern:
 
 - [ ] Pattern matches primary use case
 - [ ] Permissions align with pattern needs
-- [ ] Safety protocols included for risky permissions (bash, write)
+- [ ] Safety protocols included for elevated permissions (`bash` patterns, `edit: allow`)
 - [ ] Skills loaded match agent domain
 - [ ] Instructions cover core responsibilities
 - [ ] Process/workflow defined clearly

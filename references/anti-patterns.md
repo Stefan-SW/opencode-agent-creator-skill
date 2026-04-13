@@ -4,31 +4,28 @@ Common mistakes to avoid when creating OpenCode agents.
 
 ## 1. Tool Overload
 
-**Problem:** Enabling all tools "just in case" without considering if they're actually needed.
+**Problem:** Granting overly permissive access without considering what the agent actually needs.
 
 ❌ **Bad:**
 
 ```yaml
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: true
-  webfetch: true
-  task: true
-  todowrite: true
-  todoread: true
+permission:
+  edit: allow
+  bash: allow
+  webfetch: allow
+  task:
+    "*": allow
   # Agent only reads and analyzes files!
 ```
 
 ✅ **Good:**
 
 ```yaml
-tools:
-  read: true
-  grep: true
-  glob: true
-  # Only what's needed for analysis
+permission:
+  edit: deny
+  bash: deny
+  webfetch: deny
+  # Only what's needed for read-only analysis
 ```
 
 **Why it's bad:**
@@ -38,7 +35,7 @@ tools:
 - Makes permission management complex
 - Violates principle of least privilege
 
-**Rule:** Only enable tools essential for the agent's purpose.
+**Rule:** Only grant permissions essential for the agent's purpose.
 
 ---
 
@@ -49,8 +46,6 @@ tools:
 ❌ **Bad:**
 
 ```yaml
-tools:
-  bash: true
 permission:
   bash: allow # Allows `rm -rf /` without asking!
 ```
@@ -58,15 +53,13 @@ permission:
 ✅ **Good:**
 
 ```yaml
-tools:
-  bash: true
 permission:
   bash:
-    "*": ask # Ask for all by default
+    "*": ask       # Ask for all by default
     "git status*": allow # Allow safe commands
     "ls *": allow
     "cat *": allow
-    "rm *": deny # Deny dangerous
+    "rm *": deny   # Deny dangerous
     "sudo rm *": deny
 ```
 
@@ -376,13 +369,11 @@ React 18+: Use `ReactDOM.createRoot()`
 
 ## 11. No Permission Documentation
 
-**Problem:** Bash enabled but permissions not documented.
+**Problem:** Bash enabled but permissions not documented in the prompt.
 
 ❌ **Bad:**
 
 ```yaml
-tools:
-  bash: true
 permission:
   bash: ask
 ```
@@ -392,8 +383,6 @@ No explanation in the prompt about what commands are allowed.
 ✅ **Good:**
 
 ```yaml
-tools:
-  bash: true
 permission:
   bash:
     "*": ask
@@ -521,7 +510,7 @@ You are an expert code reviewer. Your responsibilities:
 Before creating an agent, verify you're NOT doing:
 
 - [ ] ❌ Writing agent files in non-English languages
-- [ ] ❌ Enabling all tools "just in case"
+- [ ] ❌ Granting overly permissive access without thought
 - [ ] ❌ `bash: allow` or `edit: allow` without patterns
 - [ ] ❌ Vague description without triggers
 - [ ] ❌ Missing `<example>` blocks
@@ -533,6 +522,9 @@ Before creating an agent, verify you're NOT doing:
 - [ ] ❌ Time-sensitive information
 - [ ] ❌ Undocumented permissions
 - [ ] ❌ Inconsistent naming
+- [ ] ❌ Using deprecated `tools:` field (use `permission:` instead)
+- [ ] ❌ Using deprecated `maxSteps` field (use `steps:` instead)
+- [ ] ❌ Wrong agent path (`agent/` singular — correct is `agents/` plural)
 
 If any are checked, fix before proceeding!
 
@@ -543,12 +535,12 @@ If any are checked, fix before proceeding!
 Check these well-structured agents:
 
 ```bash
-# In your OpenCode agent directory
-ls ~/.config/opencode/agent/
+# In your OpenCode agents directory
+ls ~/.config/opencode/agents/
 
 # Read good examples:
-cat ~/.config/opencode/agent/frontend-developer.md
-cat ~/.config/opencode/agent/linux-sysadmin.md
+cat ~/.config/opencode/agents/frontend-developer.md
+cat ~/.config/opencode/agents/linux-sysadmin.md
 ```
 
 Study their structure:

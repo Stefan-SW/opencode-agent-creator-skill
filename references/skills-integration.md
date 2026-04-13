@@ -10,18 +10,18 @@ Skills are passive knowledge repositories that agents can load on-demand for spe
 
 ### Skills (Passive Knowledge)
 
-- **Location**: `~/.config/opencode/skills/skill-name/SKILL.md`
+- **Location**: `~/.config/opencode/skills/<name>/SKILL.md` (global) or `.opencode/skills/<name>/SKILL.md` (project)
 - **Purpose**: Provide reference documentation, best practices, step-by-step guides
 - **Activation**: Loaded via `skill` tool when agent needs them
 - **Characteristics**:
-  - No frontmatter YAML
+  - Requires YAML frontmatter (`name`, `description` are required)
   - No tool permissions
   - Read-only documentation
   - Can include sub-documents in skill directory
 
 ### Agents (Active Executors)
 
-- **Location**: `~/.config/opencode/agent/agent-name.md`
+- **Location**: `~/.config/opencode/agents/<name>.md` (global) or `.opencode/agents/<name>.md` (project)
 - **Purpose**: Execute tasks using tools and permissions
 - **Activation**: User selects agent to perform work
 - **Characteristics**:
@@ -33,6 +33,19 @@ Skills are passive knowledge repositories that agents can load on-demand for spe
 ---
 
 ## Skill Directory Structure
+
+### Search Locations
+
+OpenCode searches these locations for skills, in order:
+
+- Project: `.opencode/skills/<name>/SKILL.md`
+- Global: `~/.config/opencode/skills/<name>/SKILL.md`
+- Project Claude-compatible: `.claude/skills/<name>/SKILL.md`
+- Global Claude-compatible: `~/.claude/skills/<name>/SKILL.md`
+- Project agent-compatible: `.agents/skills/<name>/SKILL.md`
+- Global agent-compatible: `~/.agents/skills/<name>/SKILL.md`
+
+For project-local paths, OpenCode walks up from the current working directory until it reaches the git worktree root, loading any matching `skills/*/SKILL.md` along the way.
 
 ### Simple Skill (Single File)
 
@@ -90,7 +103,7 @@ reference documentation.
 
 ### Agent Configuration for Skills
 
-Enable the skill tool in your agent:
+Enable the skill tool in your agent via permissions:
 
 ```yaml
 ---
@@ -105,13 +118,11 @@ description: >-
 
 mode: subagent
 
-tools:
-  read: true
-  glob: true
-  grep: true
-  skill: true         # ← Enable skill loading
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  skill:
+    "*": allow
 ---
 
 You are a security auditor. When reviewing code, load the `security-review`
@@ -140,7 +151,7 @@ skill for best practices guidance.
 
 ### Loading a Skill
 
-When agent has `skill: true` in tools:
+When the agent's `permission.skill` allows it:
 
 ```markdown
 I need to review this authentication code for security issues.
@@ -188,15 +199,67 @@ For detailed information, see:
 
 ---
 
+## Skill Naming Rules
+
+Skill names come from the directory containing `SKILL.md` and must match the `name` frontmatter field exactly.
+
+- 1–64 characters
+- Lowercase alphanumeric with single hyphen separators
+- Must not start or end with `-`
+- Must not contain consecutive `--`
+- Regex: `^[a-z0-9]+(-[a-z0-9]+)*$`
+
+✅ `security-review`, `react-testing-patterns`, `linux-sysadmin`  
+❌ `Security_Review`, `my--skill`, `-helper`, `skill1-`
+
+---
+
+## Skill Permissions
+
+Control which skills agents can load using pattern-based permissions:
+
+```json
+{
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "internal-*": "deny",
+      "experimental-*": "ask"
+    }
+  }
+}
+```
+
+| Permission | Behaviour |
+| ---------- | --------- |
+| `allow`    | Skill loads immediately |
+| `deny`     | Skill hidden from agent, access rejected |
+| `ask`      | User prompted for approval before loading |
+
+Patterns support wildcards: `internal-*` matches `internal-docs`, `internal-tools`, etc. The **last matching rule wins**, so put `*` first and specific rules after.
+
+Per-agent overrides work in the agent's own frontmatter:
+
+```yaml
+permission:
+  skill:
+    "*": allow
+    "internal-*": deny
+```
+
+---
+
 ## Skill Discovery
 
 ### Listing Available Skills
 
-Users can see installed skills:
+Users can see installed global skills:
 
 ```bash
 ls ~/.config/opencode/skills/
 ```
+
+Project-local skills are discovered automatically as OpenCode walks up from the current working directory to the git worktree root.
 
 ### Skill Naming Conventions
 
@@ -251,9 +314,16 @@ Don't create a skill when:
 mkdir -p ~/.config/opencode/skills/react-testing-patterns
 ```
 
-**Step 2: Create SKILL.md**
+**Step 2: Create SKILL.md with required frontmatter**
 
 ```markdown
+---
+name: react-testing-patterns
+description: Best practices for testing React components using Jest and React Testing Library
+license: MIT
+compatibility: opencode
+---
+
 # React Testing Patterns
 
 ## Overview
@@ -319,21 +389,14 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "npm test*": allow
     "npx jest*": allow
+  skill:
+    "*": allow
 ---
 
 You are a React testing expert.
@@ -541,14 +604,15 @@ ls ~/.config/opencode/skills/skill-name/SKILL.md
 
 **Solutions**:
 
-1. Verify agent has `skill: true` in tools:
+1. Check the agent's `permission.skill` configuration — ensure the skill name is not matched by a `deny` rule:
 
    ```yaml
-   tools:
-     skill: true
+   permission:
+     skill:
+       "*": allow
    ```
 
-2. Check file permission:
+2. Check file permissions:
    ```bash
    ls -la ~/.config/opencode/skills/skill-name/
    ```
@@ -562,7 +626,7 @@ ls ~/.config/opencode/skills/skill-name/SKILL.md
 - Keep SKILL.md as navigation hub (< 500 lines)
 - Use progressive disclosure for complex skills
 - Name skills descriptively
-- Enable `skill: true` in agent tools
+- Enable skill access via `permission.skill` in agent frontmatter
 - Include examples and code snippets
 - Update skills when best practices change
 - Organize complex skills with subdirectories
@@ -599,22 +663,14 @@ description: >-
 
 mode: subagent
 
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
-
 permission:
+  edit: ask
   bash:
     "*": ask
     "curl *": allow
     "npm test*": allow
+  skill:
+    "*": allow
 ---
 
 # Secure API Developer Agent
@@ -672,14 +728,14 @@ security-review for security requirements.
 
 ## Checklist: Adding Skills to Agent
 
-- [ ] Agent has `skill: true` in tools configuration
-- [ ] Skills are installed in `~/.config/opencode/skills/`
+- [ ] Agent `permission.skill` allows the required skills
+- [ ] Skills are installed in a [recognised location](#search-locations)
 - [ ] Agent instructions document WHEN to load each skill
-- [ ] Skill names match directory names exactly
-- [ ] SKILL.md exists in each skill directory
+- [ ] Skill `name` frontmatter matches the directory name exactly
+- [ ] `SKILL.md` exists in each skill directory with `name` and `description` frontmatter
 - [ ] Skills are complementary, not redundant
 
 ---
 
 **Remember**: Skills are your agent's knowledge base. Agents are the executors.
-Skills are loaded at runtime using the `skill` tool - NOT declared in frontmatter.
+Skills are loaded at runtime using the `skill` tool. Control access via `permission.skill` in the agent's frontmatter.

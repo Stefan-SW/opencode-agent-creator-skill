@@ -96,12 +96,13 @@ mode: subagent
 
 ---
 
-### tools
+### tools (deprecated)
 
 **Type:** Object  
-**Required:** No
+**Required:** No  
+**Deprecated:** Yes — use `permission` instead.
 
-Enable/disable specific tools for this agent.
+Enable/disable specific tools for this agent. `true` is equivalent to `{"*": "allow"}` permission; `false` is equivalent to `{"*": "deny"}` permission.
 
 **Available Tools:**
 
@@ -291,16 +292,14 @@ Override the model for this agent.
 **Format:**
 
 ```yaml
-model: anthropic/claude-sonnet-4-20250514
+model: github-copilot/claude-sonnet-4.6
 ```
 
 **Common Models:**
 
-- `anthropic/claude-sonnet-4` - Balanced performance
-- `anthropic/claude-haiku-4` - Fast, cheaper
-- `anthropic/claude-opus-4` - Most capable
-- `openai/gpt-5` - OpenAI flagship
-- `opencode/gpt-5.1-codex` - Via OpenCode Zen
+- `github-copilot/claude-haiku-4.5` - Fast, low cost
+- `github-copilot/claude-sonnet-4.6` - Balanced performance
+- `github-copilot/claude-opus-4.6` - Most capable, highest cost
 
 **When to Override:**
 
@@ -312,7 +311,7 @@ model: anthropic/claude-sonnet-4-20250514
 
 ```yaml
 # Use cheaper model for planning
-model: anthropic/claude-haiku-4-20250514
+model: github-copilot/claude-haiku-4.5
 ```
 
 ---
@@ -354,12 +353,14 @@ temperature: 0.7
 
 ---
 
-### maxSteps
+### steps
 
 **Type:** Number  
 **Required:** No
 
 Maximum agentic iterations before forcing text-only response.
+
+> **Note:** The legacy `maxSteps` field is deprecated. Use `steps` instead.
 
 **When to Use:**
 
@@ -370,7 +371,7 @@ Maximum agentic iterations before forcing text-only response.
 **Example:**
 
 ```yaml
-maxSteps: 10 # Stop after 10 iterations
+steps: 10 # Stop after 10 iterations
 ```
 
 When limit reached, agent receives system prompt to summarize work and recommend remaining tasks.
@@ -438,11 +439,11 @@ permission:
     "backend-patterns": allow
     "security-review": allow
 
-model: anthropic/claude-opus-4-20250514
+model: github-copilot/claude-opus-4.6
 
 temperature: 0.2
 
-maxSteps: 50
+steps: 50
 ---
 You are a senior software architect...
 ```
@@ -505,9 +506,6 @@ description: >-
 
 # Optional
 mode: primary|subagent|all # default: all
-tools: # default: global config
-  read: true
-  write: false
 permission: # default: none
   bash:
     "*": ask
@@ -515,7 +513,10 @@ permission: # default: none
   edit: ask
 model: provider/model-id # default: global model
 temperature: 0.1 # default: model default
-maxSteps: 10 # default: unlimited
+top_p: 0.9 # default: model default
+steps: 10 # default: unlimited (replaces deprecated maxSteps)
 hidden: false # default: false (subagent only)
+color: "#FF5733" # or: primary, secondary, accent, success, warning, error, info
+disable: false # default: false
 ---
 ```

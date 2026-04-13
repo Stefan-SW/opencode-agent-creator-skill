@@ -201,6 +201,94 @@ Choosing the right tools for your agent is critical for both functionality and s
 
 ---
 
+#### `list`
+
+**Purpose**: List files and directories  
+**Risk Level**: LOW  
+**Use When**: Agent needs to browse directory contents  
+**Permissions Required**: `list: true`
+
+**Capabilities**:
+
+- List directory contents
+- Accepts glob patterns to filter results
+
+**Safety Considerations**:
+
+- Read-only operation
+- Very safe — only returns paths
+
+**Best For**: exploratory agents, scaffolding agents
+
+---
+
+#### `question`
+
+**Purpose**: Ask the user questions during execution  
+**Risk Level**: NONE  
+**Use When**: Agent needs clarification, preferences, or decisions from the user  
+**Permissions Required**: `question: true`
+
+**Capabilities**:
+
+- Present a question with a list of options
+- Accept free-text or option-based answers
+- Handle multiple questions before submitting
+
+**Safety Considerations**:
+
+- Completely safe — no side effects
+- Pauses execution to collect user input
+
+**Best For**: onboarding agents, wizards, any agent that needs disambiguation
+
+---
+
+#### `lsp` (experimental)
+
+**Purpose**: Interact with LSP servers for code intelligence  
+**Risk Level**: LOW  
+**Use When**: Agent needs definitions, references, hover info, or call hierarchy  
+**Requires**: `OPENCODE_EXPERIMENTAL_LSP_TOOL=true`
+
+**Capabilities**:
+
+- `goToDefinition`, `findReferences`, `hover`
+- `documentSymbol`, `workspaceSymbol`
+- `goToImplementation`, `prepareCallHierarchy`, `incomingCalls`, `outgoingCalls`
+
+**Safety Considerations**:
+
+- Read-only operation
+- Requires LSP servers configured for the project
+
+**Best For**: deep code analysis, refactoring-planner, architecture agents
+
+---
+
+#### `websearch`
+
+**Purpose**: Search the web for information  
+**Risk Level**: LOW  
+**Use When**: Agent needs to discover information (not retrieve a specific URL)  
+**Requires**: OpenCode provider, or `OPENCODE_ENABLE_EXA=1`
+
+**Capabilities**:
+
+- Semantic web search via Exa AI
+- Find current events, docs, resources beyond training cutoff
+
+**Safety Considerations**:
+
+- Read-only operation
+- No API key required when using OpenCode provider
+- Use `webfetch` when you already have the URL; use `websearch` for discovery
+
+**Best For**: research agents, documentation-fetcher, any agent needing up-to-date info
+
+---
+
+
 #### `webfetch`
 
 **Purpose**: Fetch content from URLs  
@@ -273,16 +361,15 @@ Choosing the right tools for your agent is critical for both functionality and s
 
 ## Tool Combination Patterns
 
+> **Note:** The `tools` field is deprecated. The patterns below show which tools to enable via `permission`. Use `permission: { toolname: allow }` or agent-level tool blocks. Refer to [permission-patterns.md](permission-patterns.md) for full examples.
+
 ### Read-Only Analyst Pattern
 
 ```yaml
-tools:
-  read: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  webfetch: deny
 ```
 
 **Best For**: code-reviewer, security-auditor, documentation-analyzer  
@@ -294,14 +381,10 @@ tools:
 ### Safe Editor Pattern
 
 ```yaml
-tools:
-  read: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: deny
 ```
 
 **Best For**: refactoring-agent, bug-fixer, code-updater  
@@ -313,15 +396,9 @@ tools:
 ### Full Developer Pattern
 
 ```yaml
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash: deny
 ```
 
 **Best For**: feature-developer, code-generator, scaffolding-agent  
@@ -333,15 +410,12 @@ tools:
 ### System Administrator Pattern
 
 ```yaml
-tools:
-  bash: true
-  read: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: ask
+  bash:
+    "*": ask
+    "rm *": deny
+    "dd *": deny
 ```
 
 **Best For**: sysadmin, devops, package-manager  
@@ -353,14 +427,11 @@ tools:
 ### Orchestrator Pattern
 
 ```yaml
-tools:
-  task: true
-  read: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  task:
+    "*": allow
 ```
 
 **Best For**: project-manager, multi-task-coordinator  
@@ -372,14 +443,10 @@ tools:
 ### Research Pattern
 
 ```yaml
-tools:
-  webfetch: true
-  read: true
-  glob: true
-  grep: true
-  skill: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: deny
+  bash: deny
+  webfetch: allow
 ```
 
 **Best For**: documentation-fetcher, api-researcher, learning-agent  
@@ -452,16 +519,19 @@ bash → read (system agents need to read config files)
 ### ❌ DON'T: Grant bash without safety instructions
 
 ```yaml
-tools:
-  bash: true
+permission:
+  bash: allow
 # MISSING: Agent instructions on safety checks, confirmations, etc.
 ```
 
 ### ✅ DO: Grant bash with comprehensive safeguards
 
 ```yaml
-tools:
-  bash: true
+permission:
+  bash:
+    "*": ask
+    "rm *": deny
+    "dd *": deny
 ```
 
 ```markdown
@@ -478,47 +548,38 @@ tools:
 ### ❌ DON'T: Grant write without read
 
 ```yaml
-tools:
-  write: true
-# MISSING: read permission to check if file exists first
+permission:
+  edit: allow
+# MISSING: read is always available; but write overwrites — always read first in agent logic
 ```
 
-### ✅ DO: Grant write with read
+### ✅ DO: Remind the agent to read before writing
 
 ```yaml
-tools:
-  read: true
-  write: true
+permission:
+  edit: ask
 ```
 
 ---
 
-### ❌ DON'T: Grant all tools "just in case"
+### ❌ DON'T: Allow everything without restriction
 
 ```yaml
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
-  task: true
-  skill: true
-  webfetch: true
-  todoread: true
-  todowrite: true
+permission:
+  edit: allow
+  bash: allow
+  webfetch: allow
+  task:
+    "*": allow
 ```
 
-### ✅ DO: Grant only what's needed
+### ✅ DO: Restrict to only what's needed
 
 ```yaml
-tools:
-  read: true
-  edit: true
-  glob: true
-  grep: true
-  skill: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: deny
 ```
 
 ---
@@ -546,43 +607,38 @@ Start restrictive, then expand if needed:
 **Phase 1: Read-Only**
 
 ```yaml
-tools:
-  read: true
-  glob: true
-  grep: true
+permission:
+  edit: deny
+  bash: deny
+  webfetch: deny
 ```
 
 **Phase 2: Add Safe Editing** (if analysis isn't enough)
 
 ```yaml
-tools:
-  read: true
-  edit: true
-  glob: true
-  grep: true
+permission:
+  edit: ask
+  bash: deny
+  webfetch: deny
 ```
 
 **Phase 3: Add File Creation** (if editing isn't enough)
 
 ```yaml
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
+permission:
+  edit: ask
+  bash: deny
 ```
 
 **Phase 4: Add System Access** (only if absolutely necessary)
 
 ```yaml
-tools:
-  bash: true
-  read: true
-  write: true
-  edit: true
-  glob: true
-  grep: true
+permission:
+  edit: ask
+  bash:
+    "*": ask
+    "rm *": deny
+    "dd *": deny
 ```
 
 ## Summary Checklist

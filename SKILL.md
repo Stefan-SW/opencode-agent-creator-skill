@@ -1,11 +1,9 @@
----
-name: agent-creator
 description: Expert guidance for creating, configuring, and refining OpenCode agents. Use when working with agent files, authoring new agents, improving existing agents, or understanding agent structure and best practices. Use PROACTIVELY when user mentions creating agents, configuring tools, setting permissions, or agent architecture.
 license: MIT
 compatibility: agent-skills-standard
 metadata:
   category: agent-development
-  version: "3.1.0"
+  version: "3.2.0"
   author: "Rodrigo Lago"
 ---
 
@@ -44,8 +42,11 @@ Use YAML frontmatter + markdown body. **No XML tags** - use standard markdown he
 ---
 description: What it does + when to use + examples
 mode: primary|subagent|all
-tools: { read: true, write: false }
-permission: { bash: ask, edit: deny }
+permission:
+  edit: deny
+  bash:
+    "*": ask
+    "git status*": allow
 ---
 You are [ROLE]. Your expertise is [DOMAIN].
 ```
@@ -117,7 +118,8 @@ IF any check fails:
 
 **What would you like to do?**
 
-1. **Create new agent** → Use the `Write` tool to create `~/.config/opencode/agent/<name>.md`
+1. **Create new agent** → Use the `Write` tool to create `~/.config/opencode/agents/<name>.md` (global) or `.opencode/agents/<name>.md` (project)
+   - Or run `opencode agent create` for an interactive CLI wizard
 2. **Audit existing agent** → Use the `Read` tool to review, then apply fixes with `Edit`
 3. **Upgrade prompt to agent** → Read the prompt, then create proper agent file
 4. **Get guidance** → Continue reading below
@@ -134,7 +136,7 @@ User: "Create an agent for reviewing database schemas"
     ↓
 1. Agent loads this skill for guidance
 2. Agent reads templates/references as needed
-3. Agent uses Write tool to create ~/.config/opencode/agent/db-schema-reviewer.md
+3. Agent uses Write tool to create ~/.config/opencode/agents/db-schema-reviewer.md
 4. Done! User can now use @db-schema-reviewer
 ```
 
@@ -146,12 +148,14 @@ User: "Create an agent for reviewing database schemas"
 | ------------- | ----------------- | ---------- | ---------------------------- |
 | `description` | Yes               | 1024 chars | What + when + examples       |
 | `mode`        | No (default: all) | -          | primary, subagent, all       |
-| `tools`       | No                | -          | `{read: true, write: false}` |
 | `permission`  | No                | -          | Permission overrides         |
-| `model`       | No                | -          | `anthropic/claude-sonnet-4`  |
+| `model`       | No                | -          | `anthropic/claude-sonnet-4.6`  |
 | `temperature` | No                | -          | 0.1 - 1.0                    |
-| `maxSteps`    | No                | -          | 5, 10, 250                   |
+| `top_p`       | No                | -          | 0.0 - 1.0                    |
+| `steps`       | No                | -          | 5, 10, 250                   |
 | `hidden`      | No                | -          | true (subagents only)        |
+| `color`       | No                | -          | `#FF5733` or theme token   |
+| `disable`     | No                | -          | true to disable agent        |
 
 See [references/frontmatter-spec.md](references/frontmatter-spec.md) for complete specification.
 
@@ -233,12 +237,12 @@ See [references/agent-types.md](references/agent-types.md) for detailed guide.
 
 Choose the right size for your agent:
 
-| Complexity      | Lines   | Tools | maxSteps | When to Use                                    |
-| --------------- | ------- | ----- | -------- | ---------------------------------------------- |
-| **🟢 Micro**    | 50-100  | 1-2   | 5-10     | Single task (git helper, format checker)       |
-| **🟡 Simple**   | 100-200 | 2-4   | 10-25    | Focused specialist (code reviewer, doc writer) |
-| **🟠 Standard** | 200-400 | 4-6   | 25-50    | Full workflow (developer, tester)              |
-| **🔴 Complex**  | 400+    | 6+    | 50-250   | Orchestrator, multi-domain coordinator         |
+| Complexity      | Lines   | Tools | `steps` | When to Use                                    |
+| --------------- | ------- | ----- | ------- | ---------------------------------------------- |
+| **🟢 Micro**    | 50-100  | 1-2   | 5-10    | Single task (git helper, format checker)       |
+| **🟡 Simple**   | 100-200 | 2-4   | 10-25   | Focused specialist (code reviewer, doc writer) |
+| **🟠 Standard** | 200-400 | 4-6   | 25-50   | Full workflow (developer, tester)              |
+| **🔴 Complex**  | 400+    | 6+    | 50-250  | Orchestrator, multi-domain coordinator         |
 
 **Decision Logic:**
 
@@ -334,26 +338,28 @@ Optimize agent configuration for performance and cost:
 
 ### Model Selection
 
-| Task Type             | Recommended Model | Tokens/Response | Cost Level  |
-| --------------------- | ----------------- | --------------- | ----------- |
-| Simple routing/triage | claude-3-haiku    | ~500            | 💰 Low      |
-| Code review/analysis  | claude-sonnet-4   | ~2000           | 💰💰 Medium |
-| Complex reasoning     | claude-opus-4     | ~4000           | 💰💰💰 High |
-| Quick lookups         | claude-3-haiku    | ~200            | 💰 Low      |
+| Task Type             | Recommended Model                      | Tokens/Response | Cost Level  |
+| --------------------- | -------------------------------------- | --------------- | ----------- |
+| Simple routing/triage | `github-copilot/claude-haiku-4.5`      | ~500            | 💰 Low      |
+| Code review/analysis  | `github-copilot/claude-sonnet-4.6`     | ~2000           | 💰💰 Medium |
+| Complex reasoning     | `github-copilot/claude-opus-4.6`       | ~4000           | 💰💰💰 High |
+| Quick lookups         | `github-copilot/claude-haiku-4.5`      | ~200            | 💰 Low      |
 
 **Rule:** Use the smallest model that achieves acceptable quality.
 
-### maxSteps Configuration
+### Steps Configuration
 
-| Agent Type           | maxSteps | Rationale                          |
-| -------------------- | -------- | ---------------------------------- |
-| Reviewer (read-only) | 5-10     | Limited scope, no iteration needed |
-| Doc writer           | 10-25    | Create and verify                  |
-| Builder/Developer    | 25-50    | Iterative implementation           |
-| Tester               | 25-50    | Run multiple test cycles           |
-| Orchestrator         | 50-250   | Multi-agent coordination           |
+| Agent Type           | `steps` | Rationale                          |
+| -------------------- | ------- | ---------------------------------- |
+| Reviewer (read-only) | 5-10    | Limited scope, no iteration needed |
+| Doc writer           | 10-25   | Create and verify                  |
+| Builder/Developer    | 25-50   | Iterative implementation           |
+| Tester               | 25-50   | Run multiple test cycles           |
+| Orchestrator         | 50-250  | Multi-agent coordination           |
 
-**Warning:** Higher maxSteps = higher potential cost. Set limits appropriate to task.
+**Warning:** Higher `steps` = higher potential cost. Set limits appropriate to task.
+
+> **Note:** The legacy `maxSteps` field is deprecated. Use `steps` instead.
 
 ### Temperature Guide
 
@@ -380,13 +386,16 @@ See [references/tool-selection.md](references/tool-selection.md) for detailed gu
 
 **Quick Decision Tree:**
 
-- Need to **read** files? → `read: true`
-- Need to **search** content? → `grep: true, glob: true`
-- Need to **modify** files? → `write: true, edit: true`
-- Need to **execute** commands? → `bash: true`
-- Need **web access**? → `webfetch: true`
-- Need to **spawn subagents**? → `task: true`
-- Need **task tracking**? → `todowrite: true, todoread: true`
+- Need to **read** files? → `read`
+- Need to **search** content? → `grep`, `glob`
+- Need to **list** directories? → `list`
+- Need to **modify** files? → `write`, `edit` (controlled by `edit` permission)
+- Need to **execute** commands? → `bash`
+- Need **web access**? → `webfetch` (retrieve URL), `websearch` (discover via search)
+- Need **code intelligence** (LSP)? → `lsp` (experimental, requires `OPENCODE_EXPERIMENTAL_LSP_TOOL=true`)
+- Need to **ask the user** questions? → `question`
+- Need to **spawn subagents**? → `task`
+- Need **task tracking**? → `todowrite`, `todoread` (disabled for subagents by default)
 
 **Rule:** Start minimal. Only enable tools needed for the agent's purpose.
 
@@ -425,7 +434,8 @@ Before creating an agent, verify:
 - [ ] **Written entirely in English** (frontmatter, prompt, examples)
 - [ ] Valid YAML frontmatter with description and examples
 - [ ] Description includes triggers + `<example>` blocks
-- [ ] Tools match agent purpose
+- [ ] Uses `permission` field (not deprecated `tools`)
+- [ ] Uses `steps` field (not deprecated `maxSteps`)
 - [ ] Dangerous tools have permission controls
 - [ ] System prompt defines clear responsibilities
 - [ ] **Context First subsection** in Operating Principles
@@ -442,11 +452,11 @@ See [workflows/audit-agent.md](workflows/audit-agent.md) for complete rubric.
 
 ```bash
 # 1. Syntax Check - Validate YAML frontmatter
-head -50 ~/.config/opencode/agent/<name>.md | yq .
+head -50 ~/.config/opencode/agents/<name>.md | yq .
 # Should parse without errors
 
 # 2. File Check - Verify file was created
-ls -la ~/.config/opencode/agent/<name>.md
+ls -la ~/.config/opencode/agents/<name>.md
 ```
 
 ### Functional Tests
@@ -524,6 +534,9 @@ See [references/anti-patterns.md](references/anti-patterns.md) for complete list
 10. ❌ **No Tone Calibration** - Verbose agent for quick tasks
 11. ❌ **Ignoring Cost** - Using opus for simple routing tasks
 12. ❌ **Missing Context First** - Agent acts without gathering requirements
+13. ❌ **Using `tools` field** - Deprecated; use `permission` instead
+14. ❌ **Using `maxSteps`** - Deprecated; use `steps` instead
+15. ❌ **Wrong file path** - Using `agent/` (singular); correct is `agents/` (plural)
 
 ## Templates
 
@@ -554,7 +567,7 @@ For the complete step-by-step workflow, see **[workflows/create-new-agent.md](wo
 ```
 1. UNDERSTAND → Ask: purpose, triggers, mode (primary/subagent)
 2. CATEGORIZE → Determine: type, complexity (🟢-🔴), risk level
-3. CREATE     → Write file to ~/.config/opencode/agent/<name>.md
+3. CREATE     → Write file to ~/.config/opencode/agents/<name>.md (global) or .opencode/agents/<name>.md (project)
 4. CONFIGURE  → Set: description, tools, permissions, tone
 5. VERIFY     → Run: syntax check, invocation test, permission test
 6. REPORT     → Confirm creation with usage instructions
@@ -578,7 +591,7 @@ User: "Create an agent for database migrations"
 Agent:
 1. Read templates/db-admin.md
 2. Customize for migrations (safety rules, allowed commands)
-3. Write to ~/.config/opencode/agent/db-migrator.md
+3. Write to ~/.config/opencode/agents/db-migrator.md
 4. Verify: yq frontmatter, test @db-migrator
 5. Report: "Created db-migrator. Use @db-migrator to invoke."
 ```

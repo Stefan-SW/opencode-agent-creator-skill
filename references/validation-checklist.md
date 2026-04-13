@@ -74,40 +74,20 @@ mode: subagent
 mode: helper  # Error: not a valid mode
 ```
 
-### tools
+### tools (deprecated)
 
-- [ ] If present, is a dictionary/object
-- [ ] All keys are valid tool names
-- [ ] All values are boolean (true/false)
+> **Warning:** The `tools` field is deprecated. Use `permission` instead.
 
-**Valid tool names:**
-
-```
-bash, read, write, edit, glob, grep,
-task, skill, webfetch, todoread, todowrite
-```
-
-**Validation:**
-
-```yaml
-# Good
-tools:
-  read: true
-  glob: true
-  grep: true
-  skill: true
-
-# Bad
-tools:
-  read: "yes"     # Error: must be boolean
-  search: true    # Error: invalid tool name
-```
+- [ ] If present, flag as deprecated and suggest migrating to `permission`
 
 ### permission
 
 - [ ] If present, is a dictionary/object
-- [ ] Values are either: string (`allow`, `ask`, `deny`) or pattern dictionary
-- [ ] Pattern dictionaries have valid permission levels
+- [ ] Keys are valid permission targets: `edit`, `bash`, `webfetch`, `skill`, `task`
+- [ ] Simple values are one of: `allow`, `ask`, `deny`
+- [ ] Pattern dictionaries have string keys (glob patterns) and valid permission level values
+- [ ] `write` is **not** a valid key — file writes are controlled by `edit`
+- [ ] For `bash`, `skill`, and `task`: `"*"` wildcard comes first, specific rules after (last match wins)
 
 **Validation:**
 
@@ -115,10 +95,9 @@ tools:
 # Good - simple permissions
 permission:
   edit: ask
-  write: ask
   bash: deny
 
-# Good - pattern-based permissions
+# Good - pattern-based bash
 permission:
   bash:
     "*": ask
@@ -127,25 +106,27 @@ permission:
 
 # Bad
 permission:
-  bash: maybe        # Error: invalid level
+  write: ask       # Error: not a valid key; use edit:
+  bash: maybe      # Error: invalid level
   edit:
-    "*": sometimes   # Error: invalid level
+    "*": sometimes # Error: invalid level
 ```
 
 ### model
 
 - [ ] If present, is a string
-- [ ] Format is `provider/model-id` (e.g., `anthropic/claude-sonnet-4`)
+- [ ] Format is `provider/model-id` (e.g., `github-copilot/claude-sonnet-4.6`)
 
 ### temperature
 
 - [ ] If present, is a number
 - [ ] Value is between 0.0 and 1.0
 
-### maxSteps
+### steps
 
 - [ ] If present, is an integer
 - [ ] Value is at least 1
+- [ ] `maxSteps` is deprecated — flag and suggest renaming to `steps`
 
 ### hidden
 
@@ -156,32 +137,36 @@ permission:
 
 ## 4. Deprecated Fields
 
-These fields should NOT be present:
+These fields should NOT be present in new agents:
 
 | Field         | Status     | Replacement                           |
 | ------------- | ---------- | ------------------------------------- |
+| `tools`       | Deprecated | Use `permission` instead              |
+| `maxSteps`    | Deprecated | Use `steps` instead                   |
 | `name`        | Deprecated | Name comes from filename              |
 | `skills`      | Deprecated | Load skills at runtime via skill tool |
 | `permissions` | Renamed    | Use `permission` (singular)           |
 
-**Error if:** Any deprecated field is present
+**Error if:** `name`, `skills`, or `permissions` present  
+**Warning if:** `tools` or `maxSteps` present — migrate to current equivalents
 
 ---
 
-## 5. Tool Safety Patterns
+## 5. Permission Safety Patterns
 
 ### Check for Anti-Patterns
 
-- [ ] Not all tools enabled (tool overload)
-- [ ] If `bash: true`, has permission patterns
-- [ ] If `write: true`, also has `read: true`
-- [ ] If `edit: true`, also has `read: true`
+- [ ] Not all permissions set to `allow` (permission promiscuity)
+- [ ] If `bash` is not `deny`, has pattern-based controls
+- [ ] `edit: allow` is intentional and documented
+- [ ] Dangerous bash commands (`rm`, `dd`, `mkfs`) are explicitly `deny`
+- [ ] `"*"` wildcard is first in pattern maps, specific rules follow
 
 **Warning if:**
 
-- 9+ tools enabled
-- bash without permission configuration
-- write/edit without read
+- `bash: allow` without patterns
+- `edit: allow` on an agent that shouldn't write files
+- No `deny` rules for destructive commands when bash is enabled
 
 ---
 
